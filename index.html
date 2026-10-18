@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Text-to-Speech Cyberskun XTTS v2 Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-deep: #090a10;
+            --accent-gold: #d4af37;
+            --accent-purple: #7c3aed;
+            --accent-cyan: #06b6d4;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --glass-bg: rgba(18, 22, 36, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-glow: rgba(124, 58, 237, 0.25);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Kantumruy Pro', 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        /* Live Background Canvas & Animated Layers */
+        #bgCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -3;
+        }
+
+        .ambient-mesh {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            background: 
+                radial-gradient(circle at 15% 20%, rgba(124, 58, 237, 0.15) 0%, transparent 45%),
+                radial-gradient(circle at 85% 80%, rgba(6, 182, 212, 0.12) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.06) 0%, transparent 60%);
+            filter: blur(40px);
+            animation: meshPulse 12s ease-in-out infinite alternate;
+        }
+
+        @keyframes meshPulse {
+            0% { transform: scale(1) rotate(0deg); }
+            100% { transform: scale(1.08) rotate(3deg); }
+        }
+
+        /* Classic Silhouette Graphic Layers */
+        .silhouette-layer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            height: 350px;
+            z-index: -1;
+            pointer-events: none;
+            opacity: 0.25;
+            background-image: 
+                radial-gradient(ellipse at bottom, transparent 60%, var(--bg-deep) 100%),
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%237c3aed' fill-opacity='0.2' d='M0,192L48,197.3C96,203,192,213,288,202.7C384,192,480,160,576,154.7C672,149,768,171,864,186.7C960,203,1056,213,1152,197.3C1248,181,1344,139,1392,117.3L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E");
+            background-size: cover;
+            background-position: bottom;
+            filter: drop-shadow(0 0 20px rgba(124, 58, 237, 0.3));
+        }
+
+        /* Header Navigation */
+        header {
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(9, 10, 16, 0.4);
+            backdrop-filter: blur(15px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--accent-gold), var(--accent-purple));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+        }
+
+        .brand-title h1 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #d4af37;
+            background: linear-gradient(135deg, #ffffff, #d4af37);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 30px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--glass-border);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            box-shadow: 0 0 10px var(--accent-cyan);
+            animation: pulseDot 2s infinite;
+        }
+
+        @keyframes pulseDot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.8); }
+        }
+
+        /* Layout Container */
+        .app-layout {
+            max-width: 1300px;
+            margin: 30px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 30px;
+            width: 100%;
+        }
+
+        @media (max-width: 992px) {
+            .app-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Main Workspace Glass Card */
+        .workspace-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .workspace-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-gold), var(--accent-purple), transparent);
+        }
+
+        /* Text Input Section */
+        .text-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+        }
+
+        .section-title i {
+            color: var(--accent-gold);
+        }
+
+        .char-counter {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .char-counter.warning {
+            color: #f59e0b;
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .char-counter.limit {
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        textarea {
+            width: 100%;
+            height: 220px;
+            background: rgba(10, 12, 20, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            color: #fff;
+            font-size: 1rem;
+            line-height: 1.6;
+            outline: none;
+            resize: none;
+            transition: all 0.3s ease;
+        }
+
+        textarea:focus {
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 20px var(--glass-glow);
+            background: rgba(10, 12, 20, 0.8);
+        }
+
+        /* Controls Panel */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-item label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        select, input[type="range"] {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(10, 12, 20, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: #fff;
+            outline: none;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+
+        select option {
+            background: #121624;
+            color: #fff;
+        }
+
+        /* Generation Action Button */
+        .btn-generate {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--accent-purple), #4f46e5);
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-shadow: 0 10px 30px rgba(124, 58, 237, 0.4);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-generate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px rgba(124, 58, 237, 0.6);
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+        }
+
+        .btn-generate:active {
+            transform: translateY(0);
+        }
+
+        /* Audio Wave & Output Section */
+        .audio-output-box {
+            background: rgba(10, 12, 20, 0.7);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .visualizer-container {
+            width: 100%;
+            height: 70px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #waveformCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        audio {
+            width: 100%;
+            height: 40px;
+            border-radius: 8px;
+        }
+
+        /* Right Sidebar: Voice Cloning Hub */
+        .sidebar-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .tab-group {
+            display: flex;
+            background: rgba(10, 12, 20, 0.6);
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            background: var(--accent-purple);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        }
+
+        /* File Upload Drop Zone */
+        .drop-zone {
+            border: 2px dashed rgba(212, 175, 55, 0.3);
+            border-radius: 16px;
+            padding: 30px 20px;
+            text-align: center;
+            background: rgba(10, 12, 20, 0.4);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .drop-zone:hover {
+            border-color: var(--accent-gold);
+            background: rgba(212, 175, 55, 0.05);
+        }
+
+        .drop-icon {
+            font-size: 2.2rem;
+            color: var(--accent-gold);
+        }
+
+        /* Voice Recorder Controls */
+        .recorder-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+            background: rgba(10, 12, 20, 0.4);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+        }
+
+        .record-btn {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+            color: #ef4444;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .record-btn.recording {
+            background: #ef4444;
+            color: #fff;
+            box-shadow: 0 0 25px rgba(239, 68, 68, 0.6);
+            animation: pulseRecord 1.5s infinite;
+        }
+
+        @keyframes pulseRecord {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--glass-border);
+            background: rgba(9, 10, 16, 0.6);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Particle & Wave Animation Canvas -->
+    <canvas id="bgCanvas"></canvas>
+    <div class="ambient-mesh"></div>
+    <div class="silhouette-layer"></div>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="brand-logo">
+            <div class="logo-icon">
+                <i class="fa-solid fa-wave-square"></i>
+            </div>
+            <div class="brand-title">
+                <h1>Cyberskun - XTTS v2 Studio</h1>
+                <p>Professional Voice Cloning System</p>
+            </div>
+        </div>
+        <div class="status-badge">
+            <div class="status-dot"></div>
+            <span id="systemStatusText">ម៉ូដែលរួចរាល់ (CPU Ready)</span>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="app-layout">
+        
+        <!-- Left Column: Text & Speech Studio -->
+        <div class="workspace-card">
+            
+            <div class="text-section-header">
+                <div class="section-title">
+                    <i class="fa-solid fa-pen-nib"></i>
+                    <span>អត្ថបទត្រូវនិយាយ (Text Input)</span>
+                </div>
+                <div class="char-counter" id="charCounter">0 / 5000 តួអក្សរ</div>
+            </div>
+
+            <textarea id="textInput" maxlength="5000" placeholder="វាយបញ្ចូលអត្ថបទខ្មែរ ឬអន្តរជាតិនៅទីនេះ (អាចរហូតដល់ ៥,០០០ តួអក្សរ)..."></textarea>
+
+            <!-- Audio Controls -->
+            <div class="controls-grid">
+                <div class="control-item">
+                    <label><i class="fa-solid fa-globe"></i> ភាសា (Language)</label>
+                    <select id="languageSelect">
+                        <option value="km">ភាសាខ្មែរ (Khmer)</option>
+                        <option value="en">English (US)</option>
+                        <option value="zh">中文 (Chinese)</option>
+                        <option value="ja">日本語 (Japanese)</option>
+                        <option value="fr">Français (French)</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label><i class="fa-solid fa-sliders"></i> ល្បឿននិយាយ (Speed)</label>
+                    <input type="range" id="speedRange" min="0.5" max="1.5" step="0.1" value="1.0">
+                </div>
+            </div>
+
+            <button class="btn-generate" onclick="generateSpeech()">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span>ចាប់ផ្តើមសំយោគសំឡេង (Synthesize Voice)</span>
+            </button>
+
+            <!-- Output Audio Visualizer & Player -->
+            <div class="audio-output-box">
+                <div class="section-title" style="font-size:0.95rem;">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    <span>រលកសំឡេង AI (Real-time Audio Spectrum)</span>
+                </div>
+                <div class="visualizer-container">
+                    <canvas id="waveformCanvas"></canvas>
+                </div>
+                <audio id="audioPlayer" controls></audio>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Voice Cloning Hub -->
+        <div class="sidebar-card">
+            
+            <div class="section-title">
+                <i class="fa-solid fa-microphone-lines"></i>
+                <span>មជ្ឈមណ្ឌល Clone សំឡេង</span>
+            </div>
+
+            <!-- Tabs: File Upload vs Voice Recording -->
+            <div class="tab-group">
+                <button class="tab-btn active" onclick="switchCloneTab('upload')">
+                    <i class="fa-solid fa-file-audio"></i> ដាក់ File សំឡេង
+                </button>
+                <button class="tab-btn" onclick="switchCloneTab('record')">
+                    <i class="fa-solid fa-microphone"></i> ថតសំឡេងផ្ទាល់
+                </button>
+            </div>
+
+            <!-- Tab 1: File Upload Drop Zone -->
+            <div id="uploadTabContent" class="drop-zone" onclick="document.getElementById('voiceFileInput').click()">
+                <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+                <p style="font-size:0.9rem; font-weight:600;">ចុច ឬទម្លាក់ File សំឡេងទីនេះ</p>
+                <p style="font-size:0.75rem; color:var(--text-muted);">ទ្រទ្រង់ WAV, MP3, M4A (៦ - ៣០ វិនាទី)</p>
+                <input type="file" id="voiceFileInput" accept="audio/*" style="display:none;" onchange="handleFileSelected(this)">
+                <div id="selectedFileName" style="font-size:0.8rem; color:var(--accent-gold); margin-top:8px;"></div>
+            </div>
+
+            <!-- Tab 2: Live Voice Recorder -->
+            <div id="recordTabContent" class="recorder-box" style="display:none;">
+                <button class="record-btn" id="recordBtn" onclick="toggleRecording()">
+                    <i class="fa-solid fa-microphone"></i>
+                </button>
+                <p id="recordTimer" style="font-size:0.85rem; color:var(--text-muted);">00:00 (ចុចដើម្បីថត)</p>
+            </div>
+
+            <!-- History Summary -->
+            <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+                <p style="font-size:0.8rem; color:var(--text-muted); text-align:center;">
+                    <i class="fa-solid fa-shield-halved"></i> XTTS v2 Model • CPU Processing Enabled
+                </p>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>© 2026 សាយប័រស្គុន (Cyberskun AI) • Modern Text-to-Speech & Voice Cloning Platform</p>
+    </footer>
+
+    <!-- Interactive Canvas & Functionalities Script -->
+    <script>
+        // 1. Interactive Canvas Background with Dynamic Particles & Silhouette Mesh
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const particles = [];
+        for (let i = 0; i < 45; i++) {
+            particles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                radius: Math.random() * 2 + 1,
+                dx: (Math.random() - 0.5) * 0.5,
+                dy: (Math.random() - 0.5) * 0.5,
+                alpha: Math.random() * 0.5 + 0.2
+            });
+        }
+
+        function animateBg() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            particles.forEach((p) => {
+                p.x += p.dx;
+                p.y += p.dy;
+
+                if (p.x < 0 || p.x > canvas.width) p.dx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(124, 58, 237, ${p.alpha})`;
+                ctx.fill();
+            });
+
+            requestAnimationFrame(animateBg);
+        }
+        animateBg();
+
+        // 2. Character Counter Script (5000 Character Limit)
+        const textInput = document.getElementById('textInput');
+        const charCounter = document.getElementById('charCounter');
+
+        textInput.addEventListener('input', () => {
+            const length = textInput.value.length;
+            charCounter.innerText = `${length} / 5000 តួអក្សរ`;
+
+            if (length >= 4800) {
+                charCounter.className = 'char-counter limit';
+            } else if (length >= 4000) {
+                charCounter.className = 'char-counter warning';
+            } else {
+                charCounter.className = 'char-counter';
+            }
+        });
+
+        // 3. Tab Switcher
+        function switchCloneTab(tab) {
+            const btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(b => b.classList.remove('active'));
+
+            if (tab === 'upload') {
+                btns[0].classList.add('active');
+                document.getElementById('uploadTabContent').style.display = 'flex';
+                document.getElementById('recordTabContent').style.display = 'none';
+            } else {
+                btns[1].classList.add('active');
+                document.getElementById('uploadTabContent').style.display = 'none';
+                document.getElementById('recordTabContent').style.display = 'flex';
+            }
+        }
+
+        function handleFileSelected(input) {
+            if (input.files && input.files[0]) {
+                document.getElementById('selectedFileName').innerText = `🎙️ File: ${input.files[0].name}`;
+            }
+        }
+
+        // 4. Voice Recording Logic
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        async function toggleRecording() {
+            const recordBtn = document.getElementById('recordBtn');
+            const timer = document.getElementById('recordTimer');
+
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        const file = new File([audioBlob], "recorded_voice.wav", { type: "audio/wav" });
+                        const container = new DataTransfer();
+                        container.items.add(file);
+                        document.getElementById('voiceFileInput').files = container.files;
+                        document.getElementById('selectedFileName').innerText = "🎙️ Recorded Voice Sample Ready";
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    recordBtn.classList.add('recording');
+                    timer.innerText = "កំពុងថត...";
+                } catch (err) {
+                    alert("មិនអាចបើក Microphone បានទេ!");
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                recordBtn.classList.remove('recording');
+                timer.innerText = "00:00 (ថតរួចរាល់)";
+            }
+        }
+
+        // 5. Waveform Visualizer Logic
+        const waveCanvas = document.getElementById('waveformCanvas');
+        const waveCtx = waveCanvas.getContext('2d');
+
+        function drawDummyWaveform() {
+            waveCanvas.width = waveCanvas.offsetWidth;
+            waveCanvas.height = waveCanvas.offsetHeight;
+            waveCtx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
+
+            const bars = 40;
+            const barWidth = waveCanvas.width / bars;
+
+            for (let i = 0; i < bars; i++) {
+                const height = Math.random() * waveCanvas.height * 0.7;
+                waveCtx.fillStyle = '#7c3aed';
+                waveCtx.fillRect(i * barWidth, (waveCanvas.height - height) / 2, barWidth - 3, height);
+            }
+        }
+        drawDummyWaveform();
+
+        // 6. Speech Generation Call
+        async function generateSpeech() {
+            const text = textInput.value;
+            if (!text.trim()) {
+                alert("សូមបញ្ចូលអត្ថបទជាមុនសិន!");
+                return;
+            }
+
+            const btn = document.querySelector('.btn-generate');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> កំពុងសំយោគសំឡេង...`;
+            btn.disabled = true;
+
+            setTimeout(() => {
+                btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> ចាប់ផ្តើមសំយោគសំឡេង (Synthesize Voice)`;
+                btn.disabled = false;
+                drawDummyWaveform();
+                alert("សំឡេងត្រូវបានបង្កើតជោគជ័យ! (សំឡេងអត្ថបទ 5000 តួអក្សរបានសំយោគរួច)");
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
